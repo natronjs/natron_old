@@ -1,0 +1,38 @@
+{
+  "name": "natron",
+  "version": "0.1.0",
+  "description": "A JavaScript Task Runner.",
+  "keywords": [
+    "task",
+    "promise",
+    "build",
+    "make",
+    "gulp",
+    "grunt",
+    "jake",
+    "tool",
+    "pipeline",
+    "stream",
+    "init",
+    "scaffold"
+  ],
+  "author": "Stefan Rumzucker",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/natronjs/natron.git"
+  },
+  "main": "dist/cjs/index",
+  "scripts": {
+    "build": "natron build",
+    "build-install": "npm --prefix build install",
+    "test": "mocha"
+  },
+  "dependencies": {
+    "minimist": "^1.2.0",
+    "natron-core": "^0.1.0"
+  },
+  "devDependencies": {
+    "babel-core": "^5.8.0"
+  },
+  "license": "MIT"
+}

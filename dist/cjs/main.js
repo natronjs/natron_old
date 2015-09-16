@@ -8,6 +8,8 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.main = main;
 
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
+
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
 
 function _toArray(arr) { return Array.isArray(arr) ? arr : Array.from(arr); }
@@ -16,7 +18,13 @@ function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in ob
 
 var _path = require("path");
 
+var _minimist = require("minimist");
+
+var _minimist2 = _interopRequireDefault(_minimist);
+
 var _natronCore = require("natron-core");
+
+var _natronLogging = require("natron-logging");
 
 function destructureArguments(args) {
   var _ref = args || {};
@@ -45,11 +53,16 @@ function getNatronRc() {
 
 function loadTranspiler(transpiler) {
   switch (transpiler) {
+    case "es6":
     case "babel":
       {
-        if (!global._babelPolyfill) {
-          require("babel-core/register");
-        }
+        require("babel-core/register");
+        return true;
+      }
+    case "coffee":
+    case "coffeescript":
+      {
+        require("coffee-script/register");
         return true;
       }
     default:
@@ -59,7 +72,9 @@ function loadTranspiler(transpiler) {
   }
 }
 
-function main(args) {
+function main() {
+  var args = arguments.length <= 0 || arguments[0] === undefined ? defaultArgs : arguments[0];
+
   var _destructureArguments = destructureArguments(args);
 
   var nfFile = _destructureArguments.nfFile;
@@ -68,15 +83,15 @@ function main(args) {
   var taskFlags = _destructureArguments.taskFlags;
 
   var rc = getNatronRc();
+  (0, _natronLogging.wrapConsole)(_natronLogging.logger);
   try {
     if (!nfFile) {
       throw new Error("Natronfile not specified");
     }
-    nfFile = (0, _path.resolve)(nfFile);
-
     if (rc && rc.transpiler) {
       loadTranspiler(rc.transpiler);
     }
+    nfFile = (0, _path.resolve)(nfFile);
 
     var nfModule = require(nfFile);
 
@@ -94,15 +109,18 @@ function main(args) {
           thing = (0, _natronCore.task)(thing);
         }
         (_thing = thing).run.apply(_thing, _toConsumableArray(taskArgs)).then(function () {
-          console.log("Task '" + taskName + "' ... DONE");
+          _natronLogging.logger.info("Task '" + taskName + "' ... DONE");
         })["catch"](function (err) {
-          console.error("Error:", err.message);
+          _natronLogging.logger.error("Error:", err.message);
         });
       } else {
         throw new Error("Task '" + taskName + "' not found");
       }
     }
   } catch (err) {
-    console.error("Error:", err.message);
+    _natronLogging.logger.error("Error:", err.message);
   }
 }
+
+var defaultArgs = (0, _minimist2["default"])(process.argv.slice(2));
+exports.defaultArgs = defaultArgs;

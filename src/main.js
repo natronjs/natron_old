@@ -2,7 +2,9 @@
  * natron
  */
 import {resolve} from "path";
+import minimist from "minimist";
 import {task, Task} from "natron-core";
+import {logger, wrapConsole} from "natron-logging";
 
 function destructureArguments(args: object): object {
   let {_, ...taskFlags} = args || {};
@@ -18,10 +20,14 @@ function getNatronRc(): object {
 
 function loadTranspiler(transpiler: string): void {
   switch (transpiler) {
+    case "es6":
     case "babel": {
-      if (!global._babelPolyfill) {
-        require("babel-core/register");
-      }
+      require("babel-core/register");
+      return true;
+    }
+    case "coffee":
+    case "coffeescript": {
+      require("coffee-script/register");
       return true;
     }
     default: {
@@ -30,18 +36,18 @@ function loadTranspiler(transpiler: string): void {
   }
 }
 
-export function main(args?: object): void {
+export function main(args = defaultArgs): void {
   let {nfFile, taskName, taskArgs, taskFlags} = destructureArguments(args);
   let rc = getNatronRc();
+  wrapConsole(logger);
   try {
     if (!nfFile) {
       throw new Error("Natronfile not specified");
     }
-    nfFile = resolve(nfFile);
-
     if (rc && rc.transpiler) {
       loadTranspiler(rc.transpiler);
     }
+    nfFile = resolve(nfFile);
 
     let nfModule = require(nfFile);
 
@@ -57,15 +63,17 @@ export function main(args?: object): void {
           thing = task(thing);
         }
         thing.run(...taskArgs).then(() => {
-          console.log(`Task '${taskName}' ... DONE`);
+          logger.info(`Task '${taskName}' ... DONE`);
         }).catch((err) => {
-          console.error("Error:", err.message);
+          logger.error("Error:", err.message);
         });
       } else {
         throw new Error(`Task '${taskName}' not found`);
       }
     }
   } catch (err) {
-    console.error("Error:", err.message);
+    logger.error("Error:", err.message);
   }
 }
+
+export var defaultArgs = minimist(process.argv.slice(2));

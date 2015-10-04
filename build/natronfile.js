@@ -4,16 +4,17 @@
 import {resolve} from "path";
 import {task} from "natron";
 import {src, dest} from "natron-vinyl";
-import {BabelTransformer} from "vinyl-tf-babel";
+import {transform} from "vinyl-tf-babel";
 
-const PKG_DIR = resolve(__dirname, "..");
-process.chdir(PKG_DIR);
+process.chdir(resolve(__dirname, ".."));
 
 function builder(target: string, options?: object) {
   let $src = src(resolve("src", "**/*.js"));
   let $dest = dest(resolve("dist", target));
-  let transform = new BabelTransformer(options);
-  return () => $src.pipe(transform).pipe($dest);
+  return () => ($src
+    .pipe(transform(options))
+    .pipe($dest)
+  );
 }
 
 export var build = task.set([

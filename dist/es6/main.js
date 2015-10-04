@@ -3,23 +3,14 @@
  */
 "use strict";
 
+export { run };
 export { main };
 import { resolve } from "path";
-import minimist from "minimist";
 import { task, Task } from "natron-core";
-import { logger, wrapConsole } from "natron-logging";
-
-function destructureArguments(args) {
-  let { _, ...taskFlags } = args || {};
-  let [nfFile, taskName, ...taskArgs] = _ || [];
-  return { nfFile, taskName, taskArgs, taskFlags };
-}
-
-function getNatronRc() {
-  try {
-    return Object(JSON.parse(process.env.NATRON_RC));
-  } catch (_) {}
-}
+import { wrapConsole } from "natron-logging";
+import { parseArgs } from "./util";
+import { rc } from "./rc";
+import { logger, colors } from "./logging";
 
 function loadTranspiler(transpiler) {
   switch (transpiler) {
@@ -42,20 +33,19 @@ function loadTranspiler(transpiler) {
   }
 }
 
-function main(args = defaultArgs) {
-  let { nfFile, taskName, taskArgs, taskFlags } = destructureArguments(args);
-  let rc = getNatronRc();
-  wrapConsole(logger);
+function run({ nfFile, taskName, taskArgs, taskFlags }) {
   try {
+    if (rc.get("logging.wrapConsole")) {
+      wrapConsole(logger);
+    }
     if (!nfFile) {
-      throw new Error("Natronfile not specified");
+      throw new Error("Missing Natronfile");
     }
-    if (rc && rc.transpiler) {
-      loadTranspiler(rc.transpiler);
+    let transpiler = rc.get("transpiler");
+    if (transpiler) {
+      loadTranspiler(transpiler);
     }
-    nfFile = resolve(nfFile);
-
-    let nfModule = require(nfFile);
+    let nfModule = require(resolve(nfFile));
 
     if (nfModule && taskName) {
       let thing;
@@ -68,19 +58,24 @@ function main(args = defaultArgs) {
         if (!(thing instanceof Task)) {
           thing = task(thing);
         }
+        logger.info(`Starting '${ taskName }' ...`);
+        let hrstart = process.hrtime();
         thing.run(...taskArgs).then(() => {
-          logger.info(`Task '${ taskName }' ... DONE`);
+          let hrend = process.hrtime(hrstart);
+          logger.success(`Finished '${ taskName }' after %ds %dms`, hrend[0], hrend[1] / 1e6);
         })["catch"](err => {
-          logger.error("Error:", err.message);
+          logger.error(err);
+          logger.error(`Finished '${ taskName }' with errors after ...`);
         });
       } else {
         throw new Error(`Task '${ taskName }' not found`);
       }
     }
   } catch (err) {
-    logger.error("Error:", err.message);
+    logger.error(String(err));
   }
 }
 
-var defaultArgs = minimist(process.argv.slice(2));
-export { defaultArgs };
+function main(args) {
+  run(parseArgs(args || process.argv.slice(2)));
+}

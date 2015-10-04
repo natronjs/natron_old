@@ -26,9 +26,9 @@
   },
   "scripts": {
     "build": "npm --prefix build run build",
-    "build-install": "npm --prefix build install --production",
+    "build-install": "npm --prefix build install",
     "test": "npm --prefix test run test",
-    "test-install": "npm --prefix test install --production"
+    "test-install": "npm --prefix test install"
   },
   "dependencies": {
     "minimist": "^1.2.0",

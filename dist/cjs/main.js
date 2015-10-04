@@ -6,50 +6,22 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+exports.run = run;
 exports.main = main;
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
 function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) arr2[i] = arr[i]; return arr2; } else { return Array.from(arr); } }
 
-function _toArray(arr) { return Array.isArray(arr) ? arr : Array.from(arr); }
-
-function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
-
 var _path = require("path");
-
-var _minimist = require("minimist");
-
-var _minimist2 = _interopRequireDefault(_minimist);
 
 var _natronCore = require("natron-core");
 
 var _natronLogging = require("natron-logging");
 
-function destructureArguments(args) {
-  var _ref = args || {};
+var _util = require("./util");
 
-  var _ = _ref._;
+var _rc = require("./rc");
 
-  var taskFlags = _objectWithoutProperties(_ref, ["_"]);
-
-  var _ref2 = _ || [];
-
-  var _ref22 = _toArray(_ref2);
-
-  var nfFile = _ref22[0];
-  var taskName = _ref22[1];
-
-  var taskArgs = _ref22.slice(2);
-
-  return { nfFile: nfFile, taskName: taskName, taskArgs: taskArgs, taskFlags: taskFlags };
-}
-
-function getNatronRc() {
-  try {
-    return Object(JSON.parse(process.env.NATRON_RC));
-  } catch (_) {}
-}
+var _logging = require("./logging");
 
 function loadTranspiler(transpiler) {
   switch (transpiler) {
@@ -72,28 +44,24 @@ function loadTranspiler(transpiler) {
   }
 }
 
-function main() {
-  var args = arguments.length <= 0 || arguments[0] === undefined ? defaultArgs : arguments[0];
+function run(_ref) {
+  var nfFile = _ref.nfFile;
+  var taskName = _ref.taskName;
+  var taskArgs = _ref.taskArgs;
+  var taskFlags = _ref.taskFlags;
 
-  var _destructureArguments = destructureArguments(args);
-
-  var nfFile = _destructureArguments.nfFile;
-  var taskName = _destructureArguments.taskName;
-  var taskArgs = _destructureArguments.taskArgs;
-  var taskFlags = _destructureArguments.taskFlags;
-
-  var rc = getNatronRc();
-  (0, _natronLogging.wrapConsole)(_natronLogging.logger);
   try {
+    if (_rc.rc.get("logging.wrapConsole")) {
+      (0, _natronLogging.wrapConsole)(_logging.logger);
+    }
     if (!nfFile) {
-      throw new Error("Natronfile not specified");
+      throw new Error("Missing Natronfile");
     }
-    if (rc && rc.transpiler) {
-      loadTranspiler(rc.transpiler);
+    var transpiler = _rc.rc.get("transpiler");
+    if (transpiler) {
+      loadTranspiler(transpiler);
     }
-    nfFile = (0, _path.resolve)(nfFile);
-
-    var nfModule = require(nfFile);
+    var nfModule = require((0, _path.resolve)(nfFile));
 
     if (nfModule && taskName) {
       var thing = undefined;
@@ -103,24 +71,31 @@ function main() {
         thing = nfModule["default"][taskName];
       }
       if (thing) {
-        var _thing;
+        (function () {
+          var _thing;
 
-        if (!(thing instanceof _natronCore.Task)) {
-          thing = (0, _natronCore.task)(thing);
-        }
-        (_thing = thing).run.apply(_thing, _toConsumableArray(taskArgs)).then(function () {
-          _natronLogging.logger.info("Task '" + taskName + "' ... DONE");
-        })["catch"](function (err) {
-          _natronLogging.logger.error("Error:", err.message);
-        });
+          if (!(thing instanceof _natronCore.Task)) {
+            thing = (0, _natronCore.task)(thing);
+          }
+          _logging.logger.info("Starting '" + taskName + "' ...");
+          var hrstart = process.hrtime();
+          (_thing = thing).run.apply(_thing, _toConsumableArray(taskArgs)).then(function () {
+            var hrend = process.hrtime(hrstart);
+            _logging.logger.success("Finished '" + taskName + "' after %ds %dms", hrend[0], hrend[1] / 1e6);
+          })["catch"](function (err) {
+            _logging.logger.error(err);
+            _logging.logger.error("Finished '" + taskName + "' with errors after ...");
+          });
+        })();
       } else {
         throw new Error("Task '" + taskName + "' not found");
       }
     }
   } catch (err) {
-    _natronLogging.logger.error("Error:", err.message);
+    _logging.logger.error(String(err));
   }
 }
 
-var defaultArgs = (0, _minimist2["default"])(process.argv.slice(2));
-exports.defaultArgs = defaultArgs;
+function main(args) {
+  run((0, _util.parseArgs)(args || process.argv.slice(2)));
+}

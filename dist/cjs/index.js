@@ -1,7 +1,6 @@
 /*
  * natron
  */
-
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -22,12 +21,24 @@ Object.defineProperty(exports, "task", {
   }
 });
 
-var _rc = require("./rc");
+var _natron = require("./natron");
 
 Object.defineProperty(exports, "rc", {
   enumerable: true,
   get: function get() {
-    return _rc.rc;
+    return _natron.rc;
+  }
+});
+Object.defineProperty(exports, "logger", {
+  enumerable: true,
+  get: function get() {
+    return _natron.logger;
+  }
+});
+Object.defineProperty(exports, "colors", {
+  enumerable: true,
+  get: function get() {
+    return _natron.colors;
   }
 });
 
@@ -37,20 +48,5 @@ Object.defineProperty(exports, "exec", {
   enumerable: true,
   get: function get() {
     return _exec.exec;
-  }
-});
-
-var _logging = require("./logging");
-
-Object.defineProperty(exports, "logger", {
-  enumerable: true,
-  get: function get() {
-    return _logging.logger;
-  }
-});
-Object.defineProperty(exports, "colors", {
-  enumerable: true,
-  get: function get() {
-    return _logging.colors;
   }
 });

@@ -17,30 +17,29 @@ var _natronCore = require("natron-core");
 
 var _natronLogging = require("natron-logging");
 
+var _natron = require("./natron");
+
 var _util = require("./util");
 
-var _rc = require("./rc");
+var _error = require("./error");
 
-var _logging = require("./logging");
-
-function loadTranspiler(transpiler) {
-  switch (transpiler) {
-    case "es6":
-    case "babel":
-      {
-        require("babel-core/register");
-        return true;
-      }
-    case "coffee":
-    case "coffeescript":
-      {
-        require("coffee-script/register");
-        return true;
-      }
-    default:
-      {
-        throw new Error("Unknown transpiler '" + transpiler + "'");
-      }
+function resolveTask(nfModule, taskName) {
+  if (!nfModule) {
+    throw _error.NatronError.create("No tasks found");
+  }
+  var thing = undefined;
+  if (nfModule[taskName]) {
+    thing = nfModule[taskName];
+  } else if (nfModule["default"]) {
+    thing = nfModule["default"][taskName];
+  }
+  if (thing) {
+    if (!(thing instanceof _natronCore.Task)) {
+      thing = (0, _natronCore.task)(thing);
+    }
+    return thing;
+  } else {
+    throw _error.NatronError.create("Task " + _natron.colors.primary(taskName) + " not found");
   }
 }
 
@@ -51,48 +50,33 @@ function run(_ref) {
   var taskFlags = _ref.taskFlags;
 
   try {
-    if (_rc.rc.get("logging.wrapConsole")) {
-      (0, _natronLogging.wrapConsole)(_logging.logger);
-    }
-    if (!nfFile) {
-      throw new Error("Missing Natronfile");
-    }
-    var transpiler = _rc.rc.get("transpiler");
-    if (transpiler) {
-      loadTranspiler(transpiler);
-    }
-    var nfModule = require((0, _path.resolve)(nfFile));
-
-    if (nfModule && taskName) {
-      var thing = undefined;
-      if (nfModule[taskName]) {
-        thing = nfModule[taskName];
-      } else if (nfModule["default"]) {
-        thing = nfModule["default"][taskName];
+    (function () {
+      if (_natron.rc.get("/logging/wrapConsole")) {
+        (0, _natronLogging.wrapConsole)(_natron.logger);
       }
-      if (thing) {
-        (function () {
-          var _thing;
-
-          if (!(thing instanceof _natronCore.Task)) {
-            thing = (0, _natronCore.task)(thing);
-          }
-          _logging.logger.info("Starting '" + taskName + "' ...");
-          var hrstart = process.hrtime();
-          (_thing = thing).run.apply(_thing, _toConsumableArray(taskArgs)).then(function () {
-            var hrend = process.hrtime(hrstart);
-            _logging.logger.success("Finished '" + taskName + "' after %ds %dms", hrend[0], hrend[1] / 1e6);
-          })["catch"](function (err) {
-            _logging.logger.error(err);
-            _logging.logger.error("Finished '" + taskName + "' with errors after ...");
-          });
-        })();
-      } else {
-        throw new Error("Task '" + taskName + "' not found");
+      if (!nfFile) {
+        throw _error.NatronError.create("Missing Natronfile");
       }
-    }
+      var transpiler = _natron.rc.get("/transpiler");
+      if (transpiler) {
+        _natron.logger.debug("Loading transpiler " + _natron.colors.magenta(transpiler));
+        (0, _util.loadTranspiler)(transpiler);
+      }
+      var nfModule = require((0, _path.resolve)(nfFile));
+      var thing = resolveTask(nfModule, taskName);
+
+      _natron.logger.info("Starting " + _natron.colors.primary(taskName));
+      var hrstart = process.hrtime();
+      thing.run.apply(thing, _toConsumableArray(taskArgs)).then(function () {
+        var hrend = process.hrtime(hrstart);
+        _natron.logger.success("Finished " + _natron.colors.primary(taskName) + " " + _natron.colors.hint("(%s)"), (0, _util.hrtimeFormat)(hrend));
+      })["catch"](function (err) {
+        _natron.logger.error(err);
+        _natron.logger.error("Finished " + _natron.colors.primary(taskName) + " with errors");
+      });
+    })();
   } catch (err) {
-    _logging.logger.error(String(err));
+    _natron.logger.error(err && err.message || String(err));
   }
 }
 

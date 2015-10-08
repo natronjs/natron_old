@@ -1,7 +1,6 @@
 /*
  * natron
  */
-
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -12,11 +11,13 @@ var _createClass = (function () { function defineProperties(target, props) { for
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+var _util = require("./util");
+
 var __RC__ = Symbol("__rc__");
 
-var NatronRC = (function () {
-  function NatronRC(rc) {
-    _classCallCheck(this, NatronRC);
+var RC = (function () {
+  function RC(rc) {
+    _classCallCheck(this, RC);
 
     if (rc && typeof rc === "string") {
       try {
@@ -30,13 +31,18 @@ var NatronRC = (function () {
     });
   }
 
-  _createClass(NatronRC, [{
+  _createClass(RC, [{
     key: "get",
     value: function get(path, defaultValue) {
       var cur = this[__RC__];
       if (path && typeof path === "string") {
-        for (var i = 0, p = path.split("."); cur && i < p.length; i++) {
-          cur = cur[p[i]];
+        if (path.charAt(0) !== "/") {
+          // @see https://tools.ietf.org/html/rfc6901
+          throw new SyntaxError("Invalid JSON Pointer " + path);
+        }
+        var parts = (0, _util.unescapePointer)(path.substring(1)).split("/");
+        for (var i = 0; cur && i < parts.length; i++) {
+          cur = cur[parts[i]];
         }
       }
       return cur !== undefined ? cur : defaultValue;
@@ -44,13 +50,11 @@ var NatronRC = (function () {
   }], [{
     key: "load",
     value: function load(rc) {
-      return new NatronRC(rc);
+      return new RC(rc);
     }
   }]);
 
-  return NatronRC;
+  return RC;
 })();
 
-exports.NatronRC = NatronRC;
-var rc = NatronRC.load(process.env.NATRON_RC);
-exports.rc = rc;
+exports.RC = RC;
